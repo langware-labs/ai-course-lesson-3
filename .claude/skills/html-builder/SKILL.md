@@ -3,11 +3,11 @@ id: 18015869-e775-4377-a22c-a7a94b169edc
 name: html-builder
 description: 'Builds a static web page or browser app — HTML, CSS and JavaScript files
   a browser opens directly, with no server, database, build step or install — that
-  looks designed and carries a "copy link" share button in a corner, so it can be
-  sent to friends on WhatsApp. Use for any page made from plain files: a game, a quiz,
+  looks designed and carries a share button in a corner (WhatsApp, email, copy link,
+  download), and publishes it to a free public link with no sign-up. Use for any page made from plain files: a game, a quiz,
   a poster, a small site, a tool, an interactive toy. Covers the folder layout, modern
   CSS and JavaScript without a framework, phone (portrait) versus computer layouts,
-  the share button, saving with localStorage, the accessibility floor and how to verify
+  the share button and publishing, saving with localStorage, the accessibility floor and how to verify
   the result. Aesthetic direction comes from `frontend-design`, which this skill loads
   first. NOT for anything that needs a server, a database, accounts or a build step.'
 allowed-tools:
@@ -50,8 +50,9 @@ What you write is what ships — the folder IS the page.
 
 ## Every page gets the share button
 
-The page is made to be shared, so every page carries a small pill in a corner
-that copies the page's link, with a "Link copied! Paste it in WhatsApp" message.
+The page is made to be shared, so every page carries a small **Share** pill in a
+corner. It opens a menu: **send on WhatsApp**, **send by email**, **copy link**
+and **download** (one self-contained `.html` file that opens with nothing beside it).
 
 1. Copy `assets/share.js` from this skill's folder into the page's folder, as is.
 2. Add one line to the end of `<head>`:
@@ -62,12 +63,42 @@ that copies the page's link, with a "Link copied! Paste it in WhatsApp" message.
    `bottom-right`. **Not `top-right`:** Flowpad floats its own Share pill there.
    Choose the corner that covers nothing important: if the page has a score in the
    top-left or controls along the bottom, move the pill to a free corner.
-4. The text follows `<html lang>` (Hebrew, Arabic, English); `data-label` and
-   `data-done` override it.
+4. The text follows `<html lang>` (Hebrew, Arabic, English).
 
-The button is self-contained: its own styles, no network, and taps on it never
-reach the page underneath. Don't restyle or rewrite it per page — if it needs to
-change, it changes in `assets/share.js`.
+The link it shares is the page's **published** address, read from
+`share-link.json` beside the page. Until the page is published, the menu says so and
+offers only the download. Don't restyle or rewrite the button per page — if it needs
+to change, it changes in `assets/share.js`.
+
+## Publishing — a public link with no sign-up
+
+Run the publish script from this skill's folder on the page's folder:
+
+```bash
+uv run --no-project python <this-skill>/scripts/publish.py <page-folder>
+```
+
+(`python3` works too where it is a real Python; on Windows prefer `uv run`.) It
+prints one JSON line: `{"ok": true, "url": "...", "valid_until": "YYYY-MM-DD"}` or
+`{"ok": false, "error": "..."}`.
+
+- It hosts the page on **xhostd**, under an account it opens for this computer by
+  itself — no email, no password, nothing for the user to do. All pages of the
+  computer share one site, each in its own folder: `https://pages-<user>.xhostd.app/<page>/`.
+- **The link is temporary.** An account with no confirmed email may be deleted 7
+  days after it opens, so every link is promised only until `valid_until`. Always
+  tell the user that date. When the account is close to that age, the script opens a
+  new one first, so a fresh publish is always good for about a week — and the page
+  gets a new address (the old link stops working when the old account goes).
+- It writes `share-link.json` into the page folder before uploading, so the Share
+  menu — locally and online — knows the address and the date.
+- Publishing puts the page on the public internet. Publish only when the user asks
+  or agrees, and never publish personal details (real names, phone numbers,
+  addresses, photos of people).
+- After changing a page that was already published, publish it again so the shared
+  link shows the new version.
+- `{"ok": false}` — tell the user in one plain sentence that publishing didn't work
+  this time, offer the **download** instead, and don't retry in a loop.
 
 ## The starting skeleton
 
@@ -85,7 +116,7 @@ change, it changes in `assets/share.js`.
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="share.js" defer></script>
-  <script src="script.js" type="module"></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
   <main>…</main>
@@ -135,8 +166,10 @@ All Baseline — none of it needs a build step:
 
 ## JavaScript without a framework
 
-- `<script type="module">` and real `import` between your own files. No framework,
-  no bundler.
+- Classic scripts: `<script src="…" defer>`, one or more files loaded in order,
+  sharing what they need through plain globals. **No `type="module"` and no
+  `import`** — the Share menu's download inlines every script into one file, and a
+  module that imports a sibling file breaks there. No framework, no bundler.
 - Prefer the platform: `<dialog>` for modals, `popover` for menus, `<details>`
   for disclosure, form inputs for validation, `localStorage` for saving.
 - Sound only after the first tap or key press (browsers block it before that), and
@@ -160,5 +193,4 @@ You cannot tell whether a page looks right by reading its source. Run the
 `web-tester` skill on it — at a portrait phone size for a phone page, a laptop size
 for a computer page — and fix every console error, crash and failed request it
 finds. Look at the screenshot: does it look designed, does it fit, is the share
-pill in a free corner? Then click the share pill once and confirm the "copied"
-message appears.
+pill in a free corner? Then open the Share menu once and confirm it opens.

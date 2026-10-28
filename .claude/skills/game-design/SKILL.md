@@ -39,8 +39,9 @@ Each step ends playable. Never show the student a version that doesn't start.
 
 ## Files
 
-`games/<name>/index.html`, `style.css`, `game.js` (split into modules —
-`input.js`, `levels.js` — once `game.js` passes ~400 lines), `share.js`. No
+`games/<name>/index.html`, `style.css`, `game.js` (split into more classic
+`<script defer>` files — `input.js`, `levels.js`, loaded in order — once `game.js`
+passes ~400 lines; no ES modules, see `html-builder`), `share.js`. No
 libraries: Canvas 2D and the DOM cover every game here, and nothing has to be
 downloaded.
 
