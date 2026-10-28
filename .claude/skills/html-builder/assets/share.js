@@ -4,7 +4,7 @@
 //   <script src="share.js" defer></script>
 //   <script src="share.js" defer data-corner="bottom-left"></script>
 //
-// The link it shares comes from share-link.json beside the page ({url, valid_until}),
+// The link it shares comes from share-link.json beside the page ({url}),
 // which scripts/publish.py writes when it publishes the page. Before that the page
 // has no public address, so the menu says so and offers only the download.
 //
@@ -17,19 +17,19 @@
     he: {
       share: 'שיתוף', whatsapp: 'שליחה בווטסאפ', email: 'שליחה במייל', copy: 'העתקת הקישור',
       download: 'הורדה למחשב', copied: 'הקישור הועתק!', message: 'תראו מה בניתי:',
-      until: (d) => `הקישור יעבוד עד ${d}`, notYet: 'הדף עוד לא פורסם. בקשו מהסוכן לפרסם אותו כדי לקבל קישור.',
+      notYet: 'הדף עוד לא פורסם. בקשו מהסוכן לפרסם אותו כדי לקבל קישור.',
       failCopy: 'לא הצלחנו להעתיק — העתיקו מכאן:', failDownload: 'ההורדה לא הצליחה',
     },
     ar: {
       share: 'مشاركة', whatsapp: 'إرسال عبر واتساب', email: 'إرسال بالبريد', copy: 'نسخ الرابط',
       download: 'تنزيل إلى الحاسوب', copied: 'تم نسخ الرابط!', message: 'انظروا ماذا بنيت:',
-      until: (d) => `يعمل الرابط حتى ${d}`, notYet: 'لم تُنشر الصفحة بعد. اطلبوا من المساعد نشرها للحصول على رابط.',
+      notYet: 'لم تُنشر الصفحة بعد. اطلبوا من المساعد نشرها للحصول على رابط.',
       failCopy: 'لم ننجح في النسخ — انسخوا من هنا:', failDownload: 'فشل التنزيل',
     },
     en: {
       share: 'Share', whatsapp: 'Send on WhatsApp', email: 'Send by email', copy: 'Copy link',
       download: 'Download', copied: 'Link copied!', message: 'Look what I built:',
-      until: (d) => `The link works until ${d}`, notYet: 'This page is not published yet. Ask the assistant to publish it to get a link.',
+      notYet: 'This page is not published yet. Ask the assistant to publish it to get a link.',
       failCopy: "Couldn't copy — copy it from here:", failDownload: 'The download failed',
     },
   };
@@ -47,16 +47,6 @@
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null)
         .then((j) => (shareLink = j && j.url ? j : null));
-
-  function formatDate(iso) {
-    try {
-      return new Date(`${iso}T12:00:00`).toLocaleDateString(document.documentElement.lang || undefined, {
-        day: 'numeric', month: 'long',
-      });
-    } catch {
-      return iso;
-    }
-  }
 
   function messageWithLink() {
     return `${text.message} ${document.title}\n${shareLink.url}`;
@@ -260,8 +250,8 @@
   async function open() {
     await linkReady;
     for (const b of menu.querySelectorAll('button')) b.disabled = b.dataset.needsLink === '1' && !shareLink;
-    note.textContent = shareLink ? (shareLink.valid_until ? text.until(formatDate(shareLink.valid_until)) : '') : text.notYet;
-    note.hidden = !note.textContent;
+    note.textContent = text.notYet;
+    note.hidden = !!shareLink;
     menu.hidden = false;
     pill.setAttribute('aria-expanded', 'true');
     menu.querySelector('button:not(:disabled)')?.focus();

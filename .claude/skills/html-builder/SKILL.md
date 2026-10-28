@@ -79,26 +79,24 @@ uv run --no-project python <this-skill>/scripts/publish.py <page-folder>
 ```
 
 (`python3` works too where it is a real Python; on Windows prefer `uv run`.) It
-prints one JSON line: `{"ok": true, "url": "...", "valid_until": "YYYY-MM-DD"}` or
-`{"ok": false, "error": "..."}`.
+prints one JSON line: `{"ok": true, "url": "..."}` or `{"ok": false, "error": "..."}`.
 
-- It hosts the page on **xhostd**, under an account it opens for this computer by
-  itself — no email, no password, nothing for the user to do. All pages of the
-  computer share one site, each in its own folder: `https://pages-<user>.xhostd.app/<page>/`.
-- **The link is temporary.** An account with no confirmed email may be deleted 7
-  days after it opens, so every link is promised only until `valid_until`. Always
-  tell the user that date. When the account is close to that age, the script opens a
-  new one first, so a fresh publish is always good for about a week — and the page
-  gets a new address (the old link stops working when the old account goes).
-- It writes `share-link.json` into the page folder before uploading, so the Share
-  menu — locally and online — knows the address and the date.
+- The page goes to the **Flowpad Pages** server and is served at
+  `https://<server>/<page-name>-<tag>/`. No account, password or email — nothing for
+  the user to do, and no hosting credential on this computer.
+- The first publish of a page claims it for this computer (a secret kept in
+  `~/.config/flowpad-pages/`). Publishing it again replaces it and **keeps the same
+  link**; nobody else can change it.
+- It writes `share-link.json` into the page folder, so the Share menu — locally and
+  online — knows the address.
 - Publishing puts the page on the public internet. Publish only when the user asks
   or agrees, and never publish personal details (real names, phone numbers,
   addresses, photos of people).
 - After changing a page that was already published, publish it again so the shared
   link shows the new version.
 - `{"ok": false}` — tell the user in one plain sentence that publishing didn't work
-  this time, offer the **download** instead, and don't retry in a loop.
+  this time, offer the **download** from the Share menu instead, and don't retry in
+  a loop.
 
 ## The starting skeleton
 
