@@ -16,19 +16,19 @@
   const TEXT = {
     he: {
       share: 'שיתוף', whatsapp: 'שליחה בווטסאפ', email: 'שליחה במייל', copy: 'העתקת הקישור',
-      download: 'הורדה למחשב', copied: 'הקישור הועתק!', message: 'תראו מה בניתי:',
+      download: 'הורדה למחשב', copied: 'הקישור הועתק!', message: 'תראו מה בניתי:', mailApp: 'אפליקציית המייל במחשב',
       notYet: 'הדף עוד לא פורסם. בקשו מהסוכן לפרסם אותו כדי לקבל קישור.',
       failCopy: 'לא הצלחנו להעתיק — העתיקו מכאן:', failDownload: 'ההורדה לא הצליחה',
     },
     ar: {
       share: 'مشاركة', whatsapp: 'إرسال عبر واتساب', email: 'إرسال بالبريد', copy: 'نسخ الرابط',
-      download: 'تنزيل إلى الحاسوب', copied: 'تم نسخ الرابط!', message: 'انظروا ماذا بنيت:',
+      download: 'تنزيل إلى الحاسوب', copied: 'تم نسخ الرابط!', message: 'انظروا ماذا بنيت:', mailApp: 'تطبيق البريد في الحاسوب',
       notYet: 'لم تُنشر الصفحة بعد. اطلبوا من المساعد نشرها للحصول على رابط.',
       failCopy: 'لم ننجح في النسخ — انسخوا من هنا:', failDownload: 'فشل التنزيل',
     },
     en: {
       share: 'Share', whatsapp: 'Send on WhatsApp', email: 'Send by email', copy: 'Copy link',
-      download: 'Download', copied: 'Link copied!', message: 'Look what I built:',
+      download: 'Download', copied: 'Link copied!', message: 'Look what I built:', mailApp: "This computer's mail app",
       notYet: 'This page is not published yet. Ask the assistant to publish it to get a link.',
       failCopy: "Couldn't copy — copy it from here:", failDownload: 'The download failed',
     },
@@ -77,6 +77,15 @@
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  }
+
+  // A page shown inside Flowpad sits in a sandboxed frame, which can neither open WhatsApp or
+  // Gmail (both refuse its windows) nor hand a mailto: to the mail app — so it asks Flowpad to
+  // open the link. On its own, the page opens it: a site in a new tab, a mailto: in the mail app.
+  function openShareLink(url) {
+    if (window.parent !== window) window.parent.postMessage({ type: 'flowpad:open-external', url }, '*');
+    else if (url.startsWith('mailto:')) location.href = url;
+    else window.open(url, '_blank', 'noopener');
   }
 
   const isRelative = (value) => value && !/^(?:[a-z]+:|\/\/|#)/i.test(value);
@@ -178,6 +187,8 @@
       display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 0; border-radius: 10px;
       color: inherit; background: none; font: 600 15px/1.2 inherit; text-align: start; cursor: pointer;
     }
+    .share-menu .share-sub { padding-inline-start: 40px; font-weight: 500; font-size: 14px; }
+    .share-menu .share-sub[hidden] { display: none; }
     .share-menu button:hover:not(:disabled) { background: rgb(255 255 255 / .1); }
     .share-menu button:disabled { opacity: .4; cursor: default; }
     .share-menu p { margin: 6px 12px 4px; font-size: 13px; line-height: 1.4; opacity: .75; }
@@ -218,27 +229,57 @@
     hideTimer = setTimeout(() => toast.classList.remove('show'), 4000);
   }
 
-  function item(name, label, needsLink, run) {
+  function item(name, label, needsLink, run, { keepOpen = false } = {}) {
     const b = document.createElement('button');
     b.type = 'button';
     b.setAttribute('role', 'menuitem');
-    b.innerHTML = icon(name);
+    if (name) b.innerHTML = icon(name);
     b.append(label);
     b.dataset.needsLink = needsLink ? '1' : '';
     b.addEventListener('click', () => {
-      close();
+      if (!keepOpen) close();
       run();
     });
     return b;
   }
+  const mailDraft = () => ({ subject: encodeURIComponent(document.title), body: encodeURIComponent(messageWithLink()) });
+  const mailto = () => `mailto:?subject=${mailDraft().subject}&body=${mailDraft().body}`;
+  // A phone hands mailto: to its mail app. A computer often has no mail app set up — there a
+  // mailto: does nothing — so it offers the two webmails as well, and lets the person choose.
+  const onPhone = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const mailChoices = [
+    item(null, 'Gmail', true, () => {
+      const { subject, body } = mailDraft();
+      openShareLink(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`);
+    }),
+    item(null, 'Outlook', true, () => {
+      const { subject, body } = mailDraft();
+      openShareLink(`https://outlook.office.com/mail/deeplink/compose?subject=${subject}&body=${body}`);
+    }),
+    item(null, text.mailApp, true, () => openShareLink(mailto())),
+  ];
+  for (const choice of mailChoices) {
+    choice.classList.add('share-sub');
+    choice.hidden = true;
+  }
   const note = document.createElement('p');
   menu.append(
     item('whatsapp', text.whatsapp, true, () =>
-      window.open(`https://wa.me/?text=${encodeURIComponent(messageWithLink())}`, '_blank', 'noopener'),
+      openShareLink(`https://wa.me/?text=${encodeURIComponent(messageWithLink())}`),
     ),
-    item('email', text.email, true, () => {
-      location.href = `mailto:?subject=${encodeURIComponent(document.title)}&body=${encodeURIComponent(messageWithLink())}`;
-    }),
+    item(
+      'email',
+      text.email,
+      true,
+      () => {
+        if (onPhone) return openShareLink(mailto());
+        const show = mailChoices[0].hidden;
+        for (const choice of mailChoices) choice.hidden = !show;
+        if (show) mailChoices[0].focus();
+      },
+      { keepOpen: !onPhone },
+    ),
+    ...mailChoices,
     item('copy', text.copy, true, async () => {
       if (await copyText(shareLink.url)) say(text.copied);
       else say(`${text.failCopy} ${shareLink.url}`);
@@ -250,6 +291,7 @@
   async function open() {
     await linkReady;
     for (const b of menu.querySelectorAll('button')) b.disabled = b.dataset.needsLink === '1' && !shareLink;
+    for (const choice of mailChoices) choice.hidden = true;
     note.textContent = text.notYet;
     note.hidden = !!shareLink;
     menu.hidden = false;
